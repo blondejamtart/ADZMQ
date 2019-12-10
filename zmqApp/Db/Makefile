@@ -1,6 +1,6 @@
 TOP=../..
 include $(TOP)/configure/CONFIG
 
-DB += NDZMQ.template
+DB += NDPluginZMQ.template
 
 include $(TOP)/configure/RULES

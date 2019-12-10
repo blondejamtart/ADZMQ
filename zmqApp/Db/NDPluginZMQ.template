@@ -1,0 +1,27 @@
+# Macros:
+# % macro, P, Device Prefix
+# % macro, R, Device Suffix (factor PVs will be $(P)$(R)*, plugin PVs $(P)$(R)DTC:*)
+# % macro, PORT, Asyn Port name
+# % macro,  ADDR,        Asyn address (set to zero)
+# % macro,  TIMEOUT,     Asyn timeout
+
+# % gui, $(PORT), edmtab, NDPluginZMQ.edl, P=$(P),R=$(R)
+
+record(bi, "$(P)$(R)IS_CONNECTED")
+{
+   field(PINI, "1")
+   field(DTYP, "asynInt32")
+   field(INP,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))ZMQ_IS_CONNECTED")
+   field(ZNAM,"Disconnected")
+   field(ONAM,"Connected")
+   field(SCAN, "I/O Intr")
+}
+
+record(waveform, "$(P)$(R)HOST_ADDRESS")
+{
+    field(DTYP, "asynOctetRead")
+    field(INP,  "@asyn($(PORT),$(ADDR),$(TIMEOUT))ZMQ_CONNECTED_ADDRESS")
+    field(FTVL, "CHAR")
+    field(NELM, "256")
+    field(SCAN, "I/O Intr")
+}

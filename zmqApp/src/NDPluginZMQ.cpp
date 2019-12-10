@@ -21,13 +21,12 @@
 #include <epicsExport.h>
 
 
-static const char *driverName="NDPluginZMQ";
+static const char *driverName = "NDPluginZMQ";
 
 /** Helper function to convert NDAttributeList to JSON object
  * \param[in] pAttributeList The NDAttributeList.
  */
-std::string NDPluginZMQ::getAttributesAsJSON(NDAttributeList *pAttributeList) 
-{
+std::string NDPluginZMQ::getAttributesAsJSON(NDAttributeList *pAttributeList) {
     std::stringstream sjson;
     sjson << '{';
 
@@ -35,7 +34,7 @@ std::string NDPluginZMQ::getAttributesAsJSON(NDAttributeList *pAttributeList)
     while (pAttr != NULL) {
         NDAttrDataType_t attrDataType;
         size_t attrDataSize;
-        void * value;
+        void *value;
 
         pAttr->getValueInfo(&attrDataType, &attrDataSize);
         value = calloc(1, attrDataSize);
@@ -43,38 +42,38 @@ std::string NDPluginZMQ::getAttributesAsJSON(NDAttributeList *pAttributeList)
 
         switch (attrDataType) {
             case NDAttrInt8:
-                sjson << "\"" << pAttr->getName() << "\":" << *((epicsInt8*)value);
+                sjson << "\"" << pAttr->getName() << "\":" << *((epicsInt8 *) value);
                 break;
             case NDAttrUInt8:
-                sjson << "\"" << pAttr->getName() << "\":" << *((epicsUInt8*)value);
+                sjson << "\"" << pAttr->getName() << "\":" << *((epicsUInt8 *) value);
                 break;
             case NDAttrInt16:
-                sjson << "\"" << pAttr->getName() << "\":" << *((epicsInt16*)value);
+                sjson << "\"" << pAttr->getName() << "\":" << *((epicsInt16 *) value);
                 break;
             case NDAttrUInt16:
-                sjson << "\"" << pAttr->getName() << "\":" << *((epicsUInt16*)value);
+                sjson << "\"" << pAttr->getName() << "\":" << *((epicsUInt16 *) value);
                 break;
             case NDAttrInt32:
-                sjson << "\"" << pAttr->getName() << "\":" << *((epicsInt32*)value);
+                sjson << "\"" << pAttr->getName() << "\":" << *((epicsInt32 *) value);
                 break;
             case NDAttrUInt32:
-                sjson << "\"" << pAttr->getName() << "\":" << *((epicsUInt32*)value);
+                sjson << "\"" << pAttr->getName() << "\":" << *((epicsUInt32 *) value);
                 break;
             case NDAttrFloat32:
-                sjson << "\"" << pAttr->getName() << "\":" << *((epicsFloat32*)value);
+                sjson << "\"" << pAttr->getName() << "\":" << *((epicsFloat32 *) value);
                 break;
             case NDAttrFloat64:
-                sjson << "\"" << pAttr->getName() << "\":" << *((epicsFloat64*)value);
+                sjson << "\"" << pAttr->getName() << "\":" << *((epicsFloat64 *) value);
                 break;
             case NDAttrString:
-                sjson << "\"" << pAttr->getName() << "\":" << "\"" << (char*)value << "\"";
+                sjson << "\"" << pAttr->getName() << "\":" << "\"" << (char *) value << "\"";
                 break;
             default:
                 break;
         }
         free(value);
         pAttr = pAttributeList->next(pAttr);
-        if (pAttr != NULL) 
+        if (pAttr != NULL)
             sjson << ',';
     }
     sjson << '}';
@@ -84,16 +83,15 @@ std::string NDPluginZMQ::getAttributesAsJSON(NDAttributeList *pAttributeList)
 
 /** Callback function that is called by the NDArray driver with new NDArray data.
   * \param[in] pArray  The NDArray from the callback.
-  */ 
-void NDPluginZMQ::processCallbacks(NDArray *pArray)
-{
+  */
+void NDPluginZMQ::processCallbacks(NDArray *pArray) {
     int arrayCounter;
     std::string type;
     std::ostringstream shape;
     std::ostringstream header;
     NDArrayInfo_t arrayInfo;
 
-    const char* functionName = "processCallbacks";
+    const char *functionName = "processCallbacks";
 
     /* Most plugins want to increment the arrayCounter each time they are called, which NDPluginDriver
      * does.  However, for this plugin we only want to increment it when we actually got a callback we were
@@ -111,14 +109,14 @@ void NDPluginZMQ::processCallbacks(NDArray *pArray)
     pArray->reserve();
     this->pArrays[0] = pArray;
 #endif
- 
+
     /* Get NDArray attributes */
     pArray->getInfo(&arrayInfo);
 
     this->unlock();
 
     /* compose JSON header */
-    switch (pArray->dataType){
+    switch (pArray->dataType) {
         case NDInt8:
             type = "int8";
             break;
@@ -138,31 +136,31 @@ void NDPluginZMQ::processCallbacks(NDArray *pArray)
             type = "uint32";
             break;
         default:
-            fprintf(stderr, "%s:%s: Data type not supported\n", driverName, functionName); 
+            fprintf(stderr, "%s:%s: Data type not supported\n", driverName, functionName);
             return;
     }
 
     shape << '[';
-    for (int i=0; i<pArray->ndims; i++) {
+    for (int i = 0; i < pArray->ndims; i++) {
         shape << pArray->dims[i].size;
-        if (i != pArray->ndims - 1) 
+        if (i != pArray->ndims - 1)
             shape << ',';
     }
     shape << ']';
 
-    header << "{\"htype\":[\"chunk-1.0\"], " 
-        << "\"type\":" << "\"" << type << "\", "
-        << "\"shape\":" << shape.str() << ", "
-        << "\"frame\":" << pArray->uniqueId << ", " 
-        << "\"ndattr\":" << getAttributesAsJSON(pArray->pAttributeList)
-        << "}";
-            
+    header << "{\"htype\":[\"chunk-1.0\"], "
+           << "\"type\":" << "\"" << type << "\", "
+           << "\"shape\":" << shape.str() << ", "
+           << "\"frame\":" << pArray->uniqueId << ", "
+           << "\"ndattr\":" << getAttributesAsJSON(pArray->pAttributeList)
+           << "}";
+
     /* send header*/
     std::string msg = header.str();
     zmq_send(this->socket, msg.c_str(), msg.length(), ZMQ_SNDMORE);
     /* send data */
     zmq_send(this->socket, pArray->pData, arrayInfo.totalBytes, 0);
-    
+
     this->lock();
 
     /* Update the parameters.  */
@@ -198,100 +196,99 @@ void NDPluginZMQ::processCallbacks(NDArray *pArray)
   * \param[in] priority The thread priority for the asyn port driver thread if ASYN_CANBLOCK is set in asynFlags.
   * \param[in] stackSize The stack size for the asyn port driver thread if ASYN_CANBLOCK is set in asynFlags.
   */
-NDPluginZMQ::NDPluginZMQ(const char *portName, const char* serverHost, int queueSize, int blockingCallbacks, 
-                           const char *NDArrayPort, int NDArrayAddr,
-                           int maxBuffers, size_t maxMemory,
-                           int priority, int stackSize)
-    /* Invoke the base class constructor.
-     * We allocate 1 NDArray of unlimited size in the NDArray pool.
-     * This driver can block (because writing a file can be slow), and it is not multi-device.  
-     * Set autoconnect to 1.  priority and stacksize can be 0, which will use defaults. */
+NDPluginZMQ::NDPluginZMQ(const char *portName, const char *address, const char *transport, const char *zmqType,
+                         int queueSize, int blockingCallbacks, const char *NDArrayPort, int NDArrayAddr,
+                         int maxBuffers, size_t maxMemory, int priority, int stackSize)
+/* Invoke the base class constructor.
+ * We allocate 1 NDArray of unlimited size in the NDArray pool.
+ * This driver can block (because writing a file can be slow), and it is not multi-device.
+ * Set autoconnect to 1.  priority and stacksize can be 0, which will use defaults. */
 #if ADCORE_VERSION < 3
-    : NDPluginDriver(portName, queueSize, blockingCallbacks,
-                     NDArrayPort, NDArrayAddr, 1, 0,
-                     maxBuffers, maxMemory,
-                     asynGenericPointerMask, asynGenericPointerMask,
-                     0, 1, priority, stackSize)
+        : NDPluginDriver(portName, queueSize, blockingCallbacks,
+                         NDArrayPort, NDArrayAddr, 1, 0,
+                         maxBuffers, maxMemory,
+                         asynGenericPointerMask, asynGenericPointerMask,
+                         0, 1, priority, stackSize)
 #else
-    : NDPluginDriver(portName, queueSize, blockingCallbacks,
-                     NDArrayPort, NDArrayAddr, 1,
-                     maxBuffers, maxMemory,
-                     asynGenericPointerMask, asynGenericPointerMask,
-                     0, 1, priority, stackSize, 0)
+: NDPluginDriver(portName, queueSize, blockingCallbacks,
+                 NDArrayPort, NDArrayAddr, 1,
+                 maxBuffers, maxMemory,
+                 asynGenericPointerMask, asynGenericPointerMask,
+                 0, 1, priority, stackSize, 0)
 #endif
 {
     const char *functionName = "NDPluginZMQ";
-    char *cp;
-    char type[10] = "";
     int rc = 0;
 
-    /* server host in form of "transport://address [PUB|PUSH]"
-     * separate host and type information */
-    strcpy(this->serverHost, serverHost);
-    if ((cp=strchr(this->serverHost, ' '))!=NULL) {
-        *cp++ = '\0';
-        strcpy(type, cp);
-    }
-    if (strcmp(type, "SUB") == 0 || strcmp(type, "PUB") == 0)
+    createParam(zmqFirstParamString, asynParamInt32, &zmqFirstParam);
+    createParam(zmqIsConnectedParamString, asynParamInt32, &zmqIsConnectedParam);
+    createParam(zmqConnectedAddressParamString, asynParamOctet, &zmqConnectedAddressParam);
+    createParam(zmqLastParamString, asynParamInt32, &zmqLastParam);
+
+    this->serverHost = std::string(transport) + std::string("://") + std::string(address);
+    if (strcmp(zmqType, "SUB") == 0 || strcmp(zmqType, "PUB") == 0)
         this->socketType = ZMQ_PUB;
-    else if (strcmp(type, "PULL") == 0 || strcmp(type, "PUSH") == 0)
+    else if (strcmp(zmqType, "PULL") == 0 || strcmp(zmqType, "PUSH") == 0)
         this->socketType = ZMQ_PUSH;
-    else if (strlen(type) == 0) {
+    else if (strlen(zmqType) == 0) {
         /* If type is not specified, make a guess.
          * If "*" is found in host address, then it is assumed to be a PUB server type
          * */
-        if (strchr(this->serverHost, '*')!=NULL) {
+        if (strchr(address, '*') != NULL) {
             this->socketType = ZMQ_PUB;
         } else {
             this->socketType = ZMQ_PUSH;
         }
     } else {
-        fprintf(stderr, "%s: Unsupported socket type %s\n", functionName, type);
+        fprintf(stderr, "%s: Unsupported socket type %s\n", functionName, zmqType);
         return;
     }
 
-    /* Set the plugin type string */    
+    /* Set the plugin type string */
     setStringParam(NDPluginDriverPluginType, driverName);
 
     /* Create ZMQ pub socket */
     this->context = zmq_ctx_new();
     this->socket = zmq_socket(context, this->socketType);
 
-    if (this->socketType == ZMQ_PUB) {
-        rc = zmq_bind(this->socket, this->serverHost);
-    } else if (this->socketType == ZMQ_PUSH) {
-        rc = zmq_connect(this->socket, this->serverHost);
+    if (this->socketType == ZMQ_PUSH) {
+        rc = zmq_bind(this->socket, this->serverHost.c_str());
+    } else if (this->socketType == ZMQ_PUB) {
+        rc = zmq_connect(this->socket, this->serverHost.c_str());
     }
     if (rc != 0) {
         fprintf(stderr, "%s: unable to bind/connect, %s\n",
                 functionName,
                 zmq_strerror(zmq_errno()));
+        setIntegerParam(zmqIsConnectedParam, 0);
         return;
     }
+
+    setIntegerParam(zmqIsConnectedParam, 1);
+    setStringParam(zmqConnectedAddressParam, this->serverHost.c_str());
 
     /* Try to connect to the NDArray port */
     connectToArrayPort();
 }
 
-NDPluginZMQ::~NDPluginZMQ()
-{
+NDPluginZMQ::~NDPluginZMQ() {
     if (this->socketType == ZMQ_PUB)
-        zmq_unbind(this->socket, this->serverHost);
+        zmq_unbind(this->socket, this->serverHost.c_str());
     else if (this->socketType == ZMQ_PUSH)
-        zmq_disconnect(this->socket, this->serverHost);
+        zmq_disconnect(this->socket, this->serverHost.c_str());
 
     zmq_close(this->socket);
     zmq_ctx_destroy(this->context);
 }
 
 /** Configuration command */
-extern "C" int NDZMQConfigure(const char *portName, const char *serverHost, int queueSize, int blockingCallbacks,
-                                 const char *NDArrayPort, int NDArrayAddr,
-                                 int maxBuffers, size_t maxMemory,
-                                 int priority, int stackSize)
-{
-    NDPluginZMQ *pPlugin = new NDPluginZMQ(portName, serverHost, queueSize, blockingCallbacks, NDArrayPort, NDArrayAddr,
-                      maxBuffers, maxMemory, priority, stackSize);
+extern "C" int
+NDZMQConfigure(const char *portName, const char *address, const char *transport, const char *zmqType, int queueSize,
+               int blockingCallbacks, const char *NDArrayPort, int NDArrayAddr,
+               int maxBuffers, size_t maxMemory, int priority, int stackSize) {
+    NDPluginZMQ *pPlugin = new NDPluginZMQ(portName, address, transport, zmqType, queueSize, blockingCallbacks,
+                                           NDArrayPort, NDArrayAddr,
+                                           maxBuffers, maxMemory, priority, stackSize);
 #if (ADCORE_VERSION > 2) || (ADCORE_VERSION == 2 && ADCORE_REVISION >= 5)
     return pPlugin->start();
 #else
@@ -300,37 +297,40 @@ extern "C" int NDZMQConfigure(const char *portName, const char *serverHost, int 
 }
 
 /* EPICS iocsh shell commands */
-static const iocshArg initArg0 = { "portName",iocshArgString};
-static const iocshArg initArg1 = { "transport://address [type]",iocshArgString};
-static const iocshArg initArg2 = { "frame queue size",iocshArgInt};
-static const iocshArg initArg3 = { "blocking callbacks",iocshArgInt};
-static const iocshArg initArg4 = { "NDArrayPort",iocshArgString};
-static const iocshArg initArg5 = { "NDArrayAddr",iocshArgInt};
-static const iocshArg initArg6 = { "maxBuffers",iocshArgInt};
-static const iocshArg initArg7 = { "maxMemory",iocshArgInt};
-static const iocshArg initArg8 = { "priority",iocshArgInt};
-static const iocshArg initArg9 = { "stackSize",iocshArgInt};
-static const iocshArg * const initArgs[] = {&initArg0,
-                                            &initArg1,
-                                            &initArg2,
-                                            &initArg3,
-                                            &initArg4,
-                                            &initArg5,
-                                            &initArg6,
-                                            &initArg7,
-                                            &initArg8,
-                                            &initArg9};
-static const iocshFuncDef initFuncDef = {"NDZMQConfigure",10,initArgs};
-static void initCallFunc(const iocshArgBuf *args)
-{
-    NDZMQConfigure(args[0].sval, args[1].sval, args[2].ival, args[3].ival,
-                     args[4].sval, args[5].ival, args[6].ival,
-                     args[7].ival, args[8].ival, args[9].ival);
+static const iocshArg initArg0 = {"portName", iocshArgString};
+static const iocshArg initArg1 = {"address", iocshArgString};
+static const iocshArg initArg2 = {"transport protocol (tcp/udp)", iocshArgString};
+static const iocshArg initArg3 = {"socket type", iocshArgString};
+static const iocshArg initArg4 = {"frame queue size", iocshArgInt};
+static const iocshArg initArg5 = {"blocking callbacks", iocshArgInt};
+static const iocshArg initArg6 = {"NDArrayPort", iocshArgString};
+static const iocshArg initArg7 = {"NDArrayAddr", iocshArgInt};
+static const iocshArg initArg8 = {"maxBuffers", iocshArgInt};
+static const iocshArg initArg9 = {"maxMemory", iocshArgInt};
+static const iocshArg initArg10 = {"priority", iocshArgInt};
+static const iocshArg initArg11 = {"stackSize", iocshArgInt};
+static const iocshArg *const initArgs[] = {&initArg0,
+                                           &initArg1,
+                                           &initArg2,
+                                           &initArg3,
+                                           &initArg4,
+                                           &initArg5,
+                                           &initArg6,
+                                           &initArg7,
+                                           &initArg8,
+                                           &initArg9,
+                                           &initArg10,
+                                           &initArg11};
+static const iocshFuncDef initFuncDef = {"NDZMQConfigure", 12, initArgs};
+
+static void initCallFunc(const iocshArgBuf *args) {
+    NDZMQConfigure(args[0].sval, args[1].sval, args[2].sval, args[3].sval,
+                   args[4].ival, args[5].ival, args[6].sval, args[7].ival,
+                   args[8].ival, args[9].ival, args[10].ival, args[11].ival);
 }
 
-extern "C" void NDZMQRegister(void)
-{
-    iocshRegister(&initFuncDef,initCallFunc);
+extern "C" void NDZMQRegister(void) {
+    iocshRegister(&initFuncDef, initCallFunc);
 }
 
 extern "C" {
