@@ -27,7 +27,8 @@ static const char *driverName = "NDPluginZMQ";
  * \param[in] pAttributeList The NDAttributeList.
  */
 std::string NDPluginZMQ::getAttributesAsJSON(NDAttributeList *pAttributeList) {
-    std::stringstream sjson;
+    std::stringstream sjson, svalue;
+    std::string sdataType;
     sjson << '{';
 
     NDAttribute *pAttr = pAttributeList->next(NULL);
@@ -39,38 +40,49 @@ std::string NDPluginZMQ::getAttributesAsJSON(NDAttributeList *pAttributeList) {
         pAttr->getValueInfo(&attrDataType, &attrDataSize);
         value = calloc(1, attrDataSize);
         pAttr->getValue(attrDataType, value, attrDataSize);
-
         switch (attrDataType) {
             case NDAttrInt8:
-                sjson << "\"" << pAttr->getName() << "\":" << *((epicsInt8 *) value);
+                svalue << *((epicsInt8 *) value);
+                sdataType = "\"int8\"";
                 break;
             case NDAttrUInt8:
-                sjson << "\"" << pAttr->getName() << "\":" << *((epicsUInt8 *) value);
+                svalue << *((epicsUInt8 *) value);
+                sdataType = "\"uint8\"";
                 break;
             case NDAttrInt16:
-                sjson << "\"" << pAttr->getName() << "\":" << *((epicsInt16 *) value);
+                svalue << *((epicsInt16 *) value);
+                sdataType = "\"int16\"";
                 break;
             case NDAttrUInt16:
-                sjson << "\"" << pAttr->getName() << "\":" << *((epicsUInt16 *) value);
+                svalue << *((epicsUInt16 *) value);
+                sdataType = "\"uint16\"";
                 break;
             case NDAttrInt32:
-                sjson << "\"" << pAttr->getName() << "\":" << *((epicsInt32 *) value);
+                svalue << *((epicsInt32 *) value);
+                sdataType = "\"int32\"";
                 break;
             case NDAttrUInt32:
-                sjson << "\"" << pAttr->getName() << "\":" << *((epicsUInt32 *) value);
+                svalue << *((epicsUInt32 *) value);
+                sdataType = "\"uint32\"";
                 break;
             case NDAttrFloat32:
-                sjson << "\"" << pAttr->getName() << "\":" << *((epicsFloat32 *) value);
+                svalue << *((epicsFloat32 *) value);
+                sdataType = "\"float32\"";
                 break;
             case NDAttrFloat64:
-                sjson << "\"" << pAttr->getName() << "\":" << *((epicsFloat64 *) value);
+                svalue << *((epicsFloat64 *) value);
+                sdataType = "\"float64\"";
                 break;
             case NDAttrString:
-                sjson << "\"" << pAttr->getName() << "\":" << "\"" << (char *) value << "\"";
+                svalue << "\"" << (char *) value << "\"";
+                sdataType = "\"string\"";
                 break;
             default:
                 break;
         }
+        sjson << "\"" << pAttr->getName() << "\":{ \"value\":" << svalue.str();
+        sjson << ",\"dataType\":" << sdataType << "}";
+
         free(value);
         pAttr = pAttributeList->next(pAttr);
         if (pAttr != NULL)
