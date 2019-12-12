@@ -36,6 +36,7 @@ std::string NDPluginZMQ::getAttributesAsJSON(NDAttributeList *pAttributeList) {
         NDAttrDataType_t attrDataType;
         size_t attrDataSize;
         void *value;
+        svalue.str("");
 
         pAttr->getValueInfo(&attrDataType, &attrDataSize);
         value = calloc(1, attrDataSize);
