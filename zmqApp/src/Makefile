@@ -10,6 +10,7 @@ DBD += ADZMQSupport.dbd
 
 ADZMQ_SRCS += ZMQDriver.cpp
 ADZMQ_SRCS += NDPluginZMQ.cpp
+ADZMQ_SRCS += ZMQControlledDriver.cpp
 ADZMQ_SRCS += JSON.cpp JSONValue.cpp
 
 ifeq ($(OS_CLASS),WIN32)

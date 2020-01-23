@@ -1,0 +1,5 @@
+<?xml version="1.0" ?>
+<components arch="linux-x86_64">
+	<ADZMQ.ZMQControlledDriver BUSY_ACQUIRE="True" P="TS-EA-SIM-99" PORT="DEMO.DRV" QUEUE="1000" R=":ZMQ:" SOURCE_ADDR="*:1515" TRANSPORT="tcp" ZMQ_TYPE="PULL"/>
+	<adUtil.gdaPlugins CAM="DEMO.DRV" P="TS-EA-SIM-99" PORTPREFIX="DEMO"/>
+</components>

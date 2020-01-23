@@ -148,8 +148,14 @@ void NDPluginZMQ::processCallbacks(NDArray *pArray) {
         case NDUInt32:
             type = "uint32";
             break;
+        case NDFloat32:
+            type = "float32";
+            break;
+        case NDFloat64:
+            type = "float64";
+            break;
         default:
-            fprintf(stderr, "%s:%s: Data type not supported\n", driverName, functionName);
+            fprintf(stderr, "%s:%s: Data type not supported (%s)\n", driverName, functionName, pArray->dataType);
             return;
     }
 

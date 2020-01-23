@@ -1,0 +1,6 @@
+# Macros:
+# % macro, P, Device Prefix
+# % macro, R, Device Suffix (factor PVs will be $(P)$(R)*, plugin PVs $(P)$(R)DTC:*)
+# % macro, PORT, Asyn Port name
+
+# % gui, $(PORT), edmtab, zmq_driver.edl, P=$(P),R=$(R)
