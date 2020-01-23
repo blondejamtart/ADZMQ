@@ -5,6 +5,9 @@
 #ifndef ADZMQ_WINCAMZMQDRIVER_H
 #define ADZMQ_WINCAMZMQDRIVER_H
 
+#define SEND_STOP       1
+#define BUSY_ACQUIRE    2
+
 #include <string>
 
 #include "ZMQDriver.h"
@@ -13,7 +16,7 @@ class ZMQControlledDriver : public ZMQDriver
 {
 public:
     ZMQControlledDriver(const char *portName, const char *address, const char *transport, const char *zmqType,
-                    bool busyAcquire, int maxBuffers, size_t maxMemory, int priority, int stackSize);
+                    unsigned int controlMode, int maxBuffers, size_t maxMemory, int priority, int stackSize);
 
     ~ZMQControlledDriver();
 
@@ -26,6 +29,7 @@ private:
     void *controlSocket;  /* main socket to ZMQ server */
     std::string controlAddr;
     bool busyAcquire;
+    bool sendStop;
 
 };
 

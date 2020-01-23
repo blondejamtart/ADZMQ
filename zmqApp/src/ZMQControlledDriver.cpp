@@ -13,9 +13,9 @@
 static const char *driverName = "ZMQControlledDriver";
 
 ZMQControlledDriver::ZMQControlledDriver(const char *portName, const char *address, const char *transport, const char *zmqType,
-                                bool busyAcquire, int maxBuffers, size_t maxMemory, int priority, int stackSize) :
+                                unsigned int controlMode, int maxBuffers, size_t maxMemory, int priority, int stackSize) :
         ZMQDriver(portName, address, transport, zmqType, maxBuffers,
-                  maxMemory, priority, stackSize), busyAcquire(busyAcquire)
+                  maxMemory, priority, stackSize)
 {
     // create a Pub/Sub socket for sending control messages back to the WinCam ZMQ sender process
     this->controlSocket = zmq_socket(this->context, ZMQ_PUSH);
@@ -28,6 +28,8 @@ ZMQControlledDriver::ZMQControlledDriver(const char *portName, const char *addre
     this->controlAddr = addrStream.str();
     asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, "binding to control socket %s\n", this->controlAddr.c_str());
     zmq_bind(this->controlSocket, this->controlAddr.c_str());
+    this->sendStop = controlMode & SEND_STOP;
+    this->busyAcquire = controlMode & BUSY_ACQUIRE;
 }
 
 ZMQControlledDriver::~ZMQControlledDriver()
@@ -36,11 +38,13 @@ ZMQControlledDriver::~ZMQControlledDriver()
     zmq_close(this->controlSocket);
 }
 
-/* TODO: Maybe implement this; in the case of B22 AO wouldn't be used and probably complicates things */
 void ZMQControlledDriver::stopAcquisition()
 {
-    zmq_send(this->controlSocket, "{\"acquire\": \"stop\"}", 19, 0);
-    ZMQDriver::stopAcquisition();
+    if (this->sendStop)
+    {
+        zmq_send(this->controlSocket, "{\"acquire\": \"stop\"}", 19, 0);
+        ZMQDriver::stopAcquisition();
+    }
 }
 
 
@@ -101,9 +105,9 @@ asynStatus ZMQControlledDriver::writeInt32(asynUser *pasynUser, epicsInt32 value
 
 extern "C" int
 ZMQControlledDriverConfig(const char *portName, const char *address, const char *transport, const char *zmqType,
-                      int busyAcquire, int maxBuffers, size_t maxMemory, int priority, int stackSize)
+                      int controlMode, int maxBuffers, size_t maxMemory, int priority, int stackSize)
 {
-    new ZMQControlledDriver(portName, address, transport, zmqType, (bool) (busyAcquire),
+    new ZMQControlledDriver(portName, address, transport, zmqType, controlMode,
             maxBuffers, maxMemory, priority, stackSize);
     return (asynSuccess);
 }
@@ -114,7 +118,7 @@ static const iocshArg ZMQControlledDriverConfigArg0 = {"Port name", iocshArgStri
 static const iocshArg ZMQControlledDriverConfigArg1 = {"address", iocshArgString};
 static const iocshArg ZMQControlledDriverConfigArg2 = {"transport protocol (tcp/udp)", iocshArgString};
 static const iocshArg ZMQControlledDriverConfigArg3 = {"socket type", iocshArgString};
-static const iocshArg ZMQControlledDriverConfigArg4 = {"busyAcquire", iocshArgInt};
+static const iocshArg ZMQControlledDriverConfigArg4 = {"controlMode", iocshArgInt};
 static const iocshArg ZMQControlledDriverConfigArg5 = {"maxBuffers", iocshArgInt};
 static const iocshArg ZMQControlledDriverConfigArg6 = {"maxMemory", iocshArgInt};
 static const iocshArg ZMQControlledDriverConfigArg7 = {"priority", iocshArgInt};

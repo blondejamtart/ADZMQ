@@ -58,7 +58,7 @@ class ZMQDriver(AsynPort):
     SysLibFileList = ["zmq"]
     _SpecificTemplate = ADCore.ADBaseTemplate
 
-    def __init__(self, PORT, SOURCE_ADDR, TRANSPORT, ZMQ_TYPE, BUSY_ACQUIRE=False,
+    def __init__(self, PORT, SOURCE_ADDR, TRANSPORT, ZMQ_TYPE, CTRL_MODE=0,
                  QUEUE=2, ADDR=0, TIMEOUT=1, **kwargs):
         # Init the superclass (AsynPort)
         self.__super.__init__(PORT)
@@ -73,7 +73,7 @@ class ZMQDriver(AsynPort):
                                         SOURCE_ADDR=Simple('Address to which to send ZMQ data', str),
                                         TRANSPORT=Simple('Transport Protocol', str),
                                         ZMQ_TYPE=Simple('ZMQ Socket Type', str),
-                                        BUSY_ACQUIRE=Simple('Allow sending acquire when busy', bool),
+                                        CTRL_MODE=Simple('Set which control messages are sent (bitwise flags, stop=1, busyAcquire=2)', int),
                                         QUEUE=Simple('Input array queue size', int),
                                         ADDR=Simple('Asyn param address', int),
                                         TIMEOUT=Simple('Asyn parm timeout', int)))
@@ -90,5 +90,5 @@ class ZMQControlledDriver(ZMQDriver):
         print (
             '# ZMQControlledDriverConfig(portName, serverHost, queueSize, maxBuffers, maxMemory, priority, stackSize)')
         print (
-                'ZMQControlledDriverConfig("%(PORT)s", "%(SOURCE_ADDR)s", %(TRANSPORT)s, %(ZMQ_TYPE)s, %(BUSY_ACQUIRE)d, %(QUEUE)d, 0, 0, 0, 0)' % self.__dict__)
+                'ZMQControlledDriverConfig("%(PORT)s", "%(SOURCE_ADDR)s", %(TRANSPORT)s, %(ZMQ_TYPE)s, %(CTRL_MODE)d, %(QUEUE)d, 0, 0, 0, 0)' % self.__dict__)
 
