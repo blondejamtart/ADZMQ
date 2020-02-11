@@ -29,10 +29,121 @@
 
 static const char *driverName = "ZMQDriver";
 
-/* parse data header */
-ChunkInfo parseHeader(const char *msg, NDAttributeList &attributeList)
+void ZMQDriver::getNDAttrFromJSON(JSONValue *value, ChunkInfo &info, NDAttributeList &attributeList)
 {
+    if (!value->IsObject())
+    {
+        fprintf(stderr, "Invalid JSON Object\n");
+        return;
+    }
+    JSONObject root = value->AsObject();
 
+    /* check htype, only "chunk-1.0" supported */
+    if (root.find(L"htype") == root.end() ||
+        !root[L"htype"]->IsArray())
+    {
+
+        fprintf(stderr, "Invalid \"htype\" field\n");
+        return;
+    }
+    JSONArray htype = root[L"htype"]->AsArray();
+    if (htype[0]->AsString() != L"chunk-1.0")
+    {
+        fprintf(stderr, "\"htype\" != \"chunk-1.0\" \n");
+        return;
+    }
+
+    /* get shape info */
+    if (root.find(L"shape") == root.end() ||
+        !root[L"shape"]->IsArray())
+    {
+        fprintf(stderr, "Invalid \"shape\" field\n");
+        return;
+    }
+    JSONArray shape = root[L"shape"]->AsArray();
+    if (shape.size() > ND_ARRAY_MAX_DIMS)
+        return;
+    info.ndims = shape.size();
+    for (int i = 0; i < (int) shape.size(); i++)
+    {
+        info.dims[i] = shape[i]->AsNumber();
+    }
+
+    /* get frame number */
+    if (root.find(L"frame") == root.end() ||
+        !root[L"frame"]->IsNumber())
+    {
+        fprintf(stderr, "Invalid \"frame\" field\n");
+        return;
+    }
+    info.frame = root[L"frame"]->AsNumber();
+
+    /* get data type */
+    if (root.find(L"type") == root.end() ||
+        !root[L"type"]->IsString())
+    {
+        fprintf(stderr, "Invalid \"type\" field\n");
+        return;
+    }
+    info.valid = true;
+    std::wstring type = root[L"type"]->AsString();
+    if (type == L"uint8")
+        info.dataType = NDUInt8;
+    else if (type == L"int8")
+        info.dataType = NDInt8;
+    else if (type == L"int16")
+        info.dataType = NDInt16;
+    else if (type == L"uint16")
+        info.dataType = NDUInt16;
+    else if (type == L"int32")
+        info.dataType = NDInt32;
+    else if (type == L"uint32")
+        info.dataType = NDUInt32;
+    else
+    {
+        info.valid = false;
+        fprintf(stderr, "Unsupported data type\n");
+    }
+    /* parse ndattr */
+    if (root.find(L"ndattr") == root.end() ||
+        !root[L"ndattr"]->IsObject())
+    {
+        return;
+    }
+    JSONObject ndattr = root[L"ndattr"]->AsObject();
+    for (JSONObject::iterator attr = ndattr.begin(); attr != ndattr.end(); ++attr)
+    {
+        std::wstring namew = attr->first;
+        std::string name(namew.begin(), namew.end());
+
+        JSONObject attrStruct = attr->second->AsObject();
+        JSONValue *val = attrStruct[L"value"];
+        JSONValue *type = attrStruct[L"dataType"];
+        std::wstring vw = type->AsString();
+        std::string attrType(vw.begin(), vw.end());
+        // could check dataType here, but current JSON library converts all numbers to double
+        if (val->IsNumber())
+        {
+            double v = val->AsNumber();
+            attributeList.add(name.c_str(), name.c_str(), NDAttrFloat64, &v);
+        }
+        else if (val->IsString() && attrType == "string")
+        {
+            std::wstring vw = val->AsString();
+            std::string v(vw.begin(), vw.end());
+            attributeList.add(name.c_str(), name.c_str(), NDAttrString, (void *) v.c_str());
+        }
+        else
+        {
+            fprintf(stderr, "Invalid \"ndattr\" type\n");
+        }
+    }
+
+}
+
+/* parse data header */
+ChunkInfo ZMQDriver::parseHeader(const char *msg, NDAttributeList &attributeList)
+{
     ChunkInfo info;
     info.valid = false; /* indicate an invalid value */
 
@@ -40,115 +151,7 @@ ChunkInfo parseHeader(const char *msg, NDAttributeList &attributeList)
     if (value == NULL)
         return info;
 
-    /* do-while(0) to simplify flow control */
-    do
-    {
-        if (!value->IsObject())
-        {
-            fprintf(stderr, "Invalid JSON Object\n");
-            break;
-        }
-        JSONObject root = value->AsObject();
-
-        /* check htype, only "chunk-1.0" supported */
-        if (root.find(L"htype") == root.end() ||
-            !root[L"htype"]->IsArray())
-        {
-
-            fprintf(stderr, "Invalid \"htype\" field\n");
-            break;
-        }
-        JSONArray htype = root[L"htype"]->AsArray();
-        if (htype[0]->AsString() != L"chunk-1.0")
-        {
-            fprintf(stderr, "\"htype\" != \"chunk-1.0\" \n");
-            break;
-        }
-
-        /* get shape info */
-        if (root.find(L"shape") == root.end() ||
-            !root[L"shape"]->IsArray())
-        {
-            fprintf(stderr, "Invalid \"shape\" field\n");
-            break;
-        }
-        JSONArray shape = root[L"shape"]->AsArray();
-        if (shape.size() > ND_ARRAY_MAX_DIMS)
-            break;
-        info.ndims = shape.size();
-        for (int i = 0; i < (int) shape.size(); i++)
-        {
-            info.dims[i] = shape[i]->AsNumber();
-        }
-
-        /* get frame number */
-        if (root.find(L"frame") == root.end() ||
-            !root[L"frame"]->IsNumber())
-        {
-            fprintf(stderr, "Invalid \"frame\" field\n");
-            break;
-        }
-        info.frame = root[L"frame"]->AsNumber();
-
-        /* get data type */
-        if (root.find(L"type") == root.end() ||
-            !root[L"type"]->IsString())
-        {
-            fprintf(stderr, "Invalid \"type\" field\n");
-            break;
-        }
-        info.valid = true;
-        std::wstring type = root[L"type"]->AsString();
-        if (type == L"uint8")
-            info.dataType = NDUInt8;
-        else if (type == L"int8")
-            info.dataType = NDInt8;
-        else if (type == L"int16")
-            info.dataType = NDInt16;
-        else if (type == L"uint16")
-            info.dataType = NDUInt16;
-        else if (type == L"int32")
-            info.dataType = NDInt32;
-        else if (type == L"uint32")
-            info.dataType = NDUInt32;
-        else
-        {
-            info.valid = false;
-            fprintf(stderr, "Unsupported data type\n");
-        }
-        /* parse ndattr */
-        if (root.find(L"ndattr") == root.end() ||
-            !root[L"ndattr"]->IsObject())
-        {
-            break;
-        }
-        JSONObject ndattr = root[L"ndattr"]->AsObject();
-        for (JSONObject::iterator attr = ndattr.begin(); attr != ndattr.end(); ++attr)
-        {
-            std::wstring namew = attr->first;
-            std::string name(namew.begin(), namew.end());
-
-            JSONObject attrStruct = attr->second->AsObject();
-            JSONValue *val = attrStruct[L"value"];
-            JSONValue *type = attrStruct[L"dataType"];
-            std::wstring vw = type->AsString();
-            std::string attrType(vw.begin(), vw.end());
-            // could check dataType here, but current JSON library converts all numbers to double
-            if (val->IsNumber())
-            {
-                double v = val->AsNumber();
-                attributeList.add(name.c_str(), name.c_str(), NDAttrFloat64, &v);
-            } else if (val->IsString() && attrType == "string")
-            {
-                std::wstring vw = val->AsString();
-                std::string v(vw.begin(), vw.end());
-                attributeList.add(name.c_str(), name.c_str(), NDAttrString, (void *) v.c_str());
-            } else
-            {
-                fprintf(stderr, "Invalid \"ndattr\" type\n");
-            }
-        }
-    } while (0);
+    this->getNDAttrFromJSON(value, info, attributeList);
 
     delete value;
     return info;
@@ -419,7 +422,8 @@ ZMQDriver::~ZMQDriver()
         /* close stop socket server */
         zmq_unbind(stopSocket, this->stopHost);
         zmq_close(stopSocket);
-    } else if (this->socketType == ZMQ_PULL)
+    }
+    else if (this->socketType == ZMQ_PULL)
     {
         /* stop if socket is blocked in receiving */
         zmq_send(stopSocket, "STOP", 4, 0);
@@ -466,7 +470,8 @@ asynStatus ZMQDriver::writeInt32(asynUser *pasynUser, epicsInt32 value)
             /* This was a command to stop acquisition */
             this->stopAcquisition();
         }
-    } else
+    }
+    else
     {
         /* If this parameter belongs to a base class call its method */
         status = ADDriver::writeInt32(pasynUser, value);
@@ -515,7 +520,9 @@ void ZMQDriver::report(FILE *fp, int details)
   * After calling the base class constructor this method creates a thread to collect the detector data, 
   * and sets reasonable default values for the parameters defined in this class, asynNDArrayDriver and ADDriver.
   * \param[in] portName The name of the asyn port driver to be created.int
-  * \param[in] serverHost The address of the ZMQ server, and pattern to be used. transport://address [SUB|PULL].
+  * \param[in] address The address & port of the ZMQ server, and pattern to be used. address:port.
+  * \param[in] transport The protocol to be used for the connection [tcp/udp]
+  * \param[in] zmqType The type of the ZeroMQ connection [PULL/SUB]
   * \param[in] maxBuffers The maximum number of NDArray buffers that the NDArrayPool for this driver is 
   *            allowed to allocate. Set this to -1 to allow an unlimited number of buffers.
   * \param[in] maxMemory The maximum amount of memory that the NDArrayPool for this driver is 
@@ -549,11 +556,13 @@ ZMQDriver::ZMQDriver(const char *portName, const char *address, const char *tran
         if (strchr(this->serverHost.c_str(), '*') != NULL)
         {
             this->socketType = ZMQ_PULL;
-        } else
+        }
+        else
         {
             this->socketType = ZMQ_SUB;
         }
-    } else
+    }
+    else
     {
         fprintf(stderr, "%s: Unsupported socket type %s\n", functionName, type);
         return;
@@ -564,7 +573,8 @@ ZMQDriver::ZMQDriver(const char *portName, const char *address, const char *tran
     if (this->socketType == ZMQ_SUB)
     {
         status |= setStringParam(ADModel, "ZeroMQ SUB");
-    } else if (this->socketType == ZMQ_PULL)
+    }
+    else if (this->socketType == ZMQ_PULL)
     {
         status |= setStringParam(ADModel, "ZeroMQ PULL");
     }
@@ -599,7 +609,8 @@ ZMQDriver::ZMQDriver(const char *portName, const char *address, const char *tran
         /* connect to the stop pub server */
         zmq_connect(this->socket, stopHost);
         zmq_setsockopt(this->socket, ZMQ_SUBSCRIBE, "STOP", 4);
-    } else if (this->socketType == ZMQ_PULL)
+    }
+    else if (this->socketType == ZMQ_PULL)
     {
         /* create the push socket to disconnect from server */
         this->stopSocket = zmq_socket(this->context, ZMQ_PUSH);
@@ -613,7 +624,8 @@ ZMQDriver::ZMQDriver(const char *portName, const char *address, const char *tran
                 strncpy(p, "127.0.0.1", 9);
                 p += 9;
                 q++;
-            } else
+            }
+            else
                 *p++ = *q++;
         }
         *p = '\0';
@@ -689,5 +701,5 @@ static void ZMQDriverRegister(void)
 
 extern "C"
 {
-    epicsExportRegistrar(ZMQDriverRegister);
+epicsExportRegistrar(ZMQDriverRegister);
 }

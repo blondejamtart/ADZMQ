@@ -14,6 +14,16 @@
 
 class ZMQControlledDriver;
 
+/* array information parsed from data header */
+struct ChunkInfo
+{
+    int ndims;
+    size_t dims[ND_ARRAY_MAX_DIMS];
+    NDDataType_t dataType;
+    int frame;
+    bool valid;
+};
+
 /** Driver for ZMQ **/
 class ZMQDriver : public ADDriver
 {
@@ -40,6 +50,9 @@ private:
     virtual void startReceive(const char *receiveFunction);
     virtual void stopAcquisition();
 
+    void getNDAttrFromJSON(JSONValue *value, ChunkInfo &info, NDAttributeList &attributeList);
+    virtual ChunkInfo parseHeader(const char *msg, NDAttributeList &attributeList);
+
     /* These items are specific to the zmq driver */
     std::string serverHost;
     char stopHost[HOST_NAME_MAX];
@@ -48,16 +61,6 @@ private:
     void *stopSocket;/* internal pub socket to stop */
     int socketType;
     epicsEventId startEventId;
-};
-
-/* array information parsed from data header */
-struct ChunkInfo
-{
-    int ndims;
-    size_t dims[ND_ARRAY_MAX_DIMS];
-    NDDataType_t dataType;
-    int frame;
-    bool valid;
 };
 
 

@@ -24,8 +24,12 @@ public:
     virtual asynStatus writeInt32(asynUser *pasynUser, epicsInt32 value);
 
 private:
+
     void startReceive(const char *receiveFunction);
     void stopAcquisition();
+
+    virtual ChunkInfo parseHeader(const char *msg, NDAttributeList &attributeList);
+
     void *controlSocket;  /* main socket to ZMQ server */
     std::string controlAddr;
     bool busyAcquire;

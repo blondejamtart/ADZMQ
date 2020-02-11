@@ -10,6 +10,7 @@ endif
 
 # Comment out the following lines to disable creation of example iocs and documentation
 DIRS := $(DIRS) $(filter-out $(DIRS), $(wildcard etc))
+DIRS := $(DIRS) $(filter-out $(DIRS), $(wildcard docs))
 
 ifeq ($(wildcard etc),etc)
 	include $(TOP)/etc/makeIocs/Makefile.iocs

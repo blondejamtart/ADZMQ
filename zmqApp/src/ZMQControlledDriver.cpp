@@ -1,19 +1,48 @@
-//
-// Created by myr45768 on 21/01/2020.
-//
+/* ZMQControlledDriver.cpp
+ *
+ * This is a driver to get data from & send control messages to a ZeroMQ server.
+ *
+ * Author: Bryan Tester
+ *         Diamond Light Source
+ *
+ * Created:  January 21, 2020
+ *
+ */
 
+#include <cstring>
 #include <epicsExport.h>
 #include <iocsh.h>
 
 #include <sstream>
 #include <zmq.h>
 
+// TODO: replace JSON library with rapidJSON
+#include <JSON.h>
+
 #include "ZMQControlledDriver.h"
 
 static const char *driverName = "ZMQControlledDriver";
 
-ZMQControlledDriver::ZMQControlledDriver(const char *portName, const char *address, const char *transport, const char *zmqType,
-                                unsigned int controlMode, int maxBuffers, size_t maxMemory, int priority, int stackSize) :
+/** Constructor for ZMQ Controlled driver; most parameters are simply passed to ZMQDriver::ZMQDriver.
+  * After calling the base class constructor this method creates a thread to collect the detector data,
+  * and sets reasonable default values for the parameters defined in this class, asynNDArrayDriver and ADDriver.
+  * \param[in] portName The name of the asyn port driver to be created.int
+  * \param[in] address The address & port of the ZMQ server, and pattern to be used (control port is port+1).address:port.
+  * \param[in] transport The protocol to be used for the connection.[tcp/udp]
+  * \param[in] zmqType The type of the ZeroMQ connection.[PULL/SUB]
+  * \param[in] controlMode Bitwise flag to set when & how control messages are sent (see docs for more info).uint
+  * \param[in] maxBuffers The maximum number of NDArray buffers that the NDArrayPool for this driver is
+  *            allowed to allocate. Set this to -1 to allow an unlimited number of buffers.
+  * \param[in] maxMemory The maximum amount of memory that the NDArrayPool for this driver is
+  *            allowed to allocate. Set this to -1 to allow an unlimited amount of memory.
+  * \param[in] priority The thread priority for the asyn port driver thread if ASYN_CANBLOCK is set in asynFlags.
+  * \param[in] stackSize The stack size for the asyn port driver thread if ASYN_CANBLOCK is set in asynFlags.
+  */
+
+ZMQControlledDriver::ZMQControlledDriver(const char *portName, const char *address, const char *transport,
+                                         const char *zmqType, unsigned int controlMode,
+                                         int maxBuffers, size_t maxMemory, int priority,
+                                         int stackSize) :
         ZMQDriver(portName, address, transport, zmqType, maxBuffers,
                   maxMemory, priority, stackSize)
 {
@@ -24,7 +53,7 @@ ZMQControlledDriver::ZMQControlledDriver(const char *portName, const char *addre
     std::string portStr = addrString.substr(delim + 1, std::string::npos);
     size_t port = atoi(portStr.c_str());
     std::stringstream addrStream;
-    addrStream << transport << "://" << addrString.substr(0, delim) << ":" << (port + 1);
+    addrStream << transport << "://" << "*:" << (port + 1);
     this->controlAddr = addrStream.str();
     asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, "binding to control socket %s\n", this->controlAddr.c_str());
     zmq_bind(this->controlSocket, this->controlAddr.c_str());
@@ -37,6 +66,45 @@ ZMQControlledDriver::~ZMQControlledDriver()
     zmq_unbind(this->controlSocket, this->controlAddr.c_str());
     zmq_close(this->controlSocket);
 }
+
+ChunkInfo ZMQControlledDriver::parseHeader(const char *msg, NDAttributeList &attributeList)
+{
+    ChunkInfo info;
+    info.valid = false; /* indicate an invalid value */
+
+    JSONValue *value = JSON::Parse(msg);
+    if (value == NULL)
+        return info;
+
+    this->getNDAttrFromJSON(value, info, attributeList);
+
+    JSONObject root = value->AsObject();
+
+    if (root.find(L"dataSource") != root.end())
+    {
+        std::wstring vw = root[L"dataSource"]->AsString();
+        std::string v(vw.begin(), vw.end());
+        setStringParam(ADModel, v.c_str());
+    }
+
+    if (root.find(L"dataSource") != root.end())
+    {
+        std::wstring vw = root[L"dataSource"]->AsString();
+        std::string v(vw.begin(), vw.end());
+        setStringParam(ADModel, v.c_str());
+    }
+
+    if (root.find(L"statusMessage") != root.end())
+    {
+        std::wstring vw = root[L"statusMessage"]->AsString();
+        std::string v(vw.begin(), vw.end());
+        setStringParam(ADStatusMessage, v.c_str());
+    }
+
+    delete value;
+    return info;
+}
+
 
 void ZMQControlledDriver::stopAcquisition()
 {
@@ -105,10 +173,10 @@ asynStatus ZMQControlledDriver::writeInt32(asynUser *pasynUser, epicsInt32 value
 
 extern "C" int
 ZMQControlledDriverConfig(const char *portName, const char *address, const char *transport, const char *zmqType,
-                      int controlMode, int maxBuffers, size_t maxMemory, int priority, int stackSize)
+                          int controlMode, int maxBuffers, size_t maxMemory, int priority, int stackSize)
 {
     new ZMQControlledDriver(portName, address, transport, zmqType, controlMode,
-            maxBuffers, maxMemory, priority, stackSize);
+                            maxBuffers, maxMemory, priority, stackSize);
     return (asynSuccess);
 }
 
@@ -124,14 +192,14 @@ static const iocshArg ZMQControlledDriverConfigArg6 = {"maxMemory", iocshArgInt}
 static const iocshArg ZMQControlledDriverConfigArg7 = {"priority", iocshArgInt};
 static const iocshArg ZMQControlledDriverConfigArg8 = {"stackSize", iocshArgInt};
 static const iocshArg *const ZMQControlledDriverConfigArgs[] = {&ZMQControlledDriverConfigArg0,
-                                                            &ZMQControlledDriverConfigArg1,
-                                                            &ZMQControlledDriverConfigArg2,
-                                                            &ZMQControlledDriverConfigArg3,
-                                                            &ZMQControlledDriverConfigArg4,
-                                                            &ZMQControlledDriverConfigArg5,
-                                                            &ZMQControlledDriverConfigArg6,
-                                                            &ZMQControlledDriverConfigArg7,
-                                                            &ZMQControlledDriverConfigArg8};
+                                                                &ZMQControlledDriverConfigArg1,
+                                                                &ZMQControlledDriverConfigArg2,
+                                                                &ZMQControlledDriverConfigArg3,
+                                                                &ZMQControlledDriverConfigArg4,
+                                                                &ZMQControlledDriverConfigArg5,
+                                                                &ZMQControlledDriverConfigArg6,
+                                                                &ZMQControlledDriverConfigArg7,
+                                                                &ZMQControlledDriverConfigArg8};
 static const iocshFuncDef configZMQControlledDriver = {"ZMQControlledDriverConfig", 9, ZMQControlledDriverConfigArgs};
 
 static void configZMQControlledDriverCallFunc(const iocshArgBuf *args)

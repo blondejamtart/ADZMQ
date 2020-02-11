@@ -192,8 +192,11 @@ void NDPluginZMQ::processCallbacks(NDArray *pArray) {
     callParamCallbacks();
 }
 
-/** Constructor for NDPluginZMQ; all parameters are simply passed to NDPluginDriver::NDPluginDriver.
+/** Constructor for NDPluginZMQ; most parameters are simply passed to NDPluginDriver::NDPluginDriver.
   * \param[in] portName The name of the asyn port driver to be created.
+  * \param[in] address The address & port of the ZMQ server, and pattern to be used.address:port.
+  * \param[in] transport The protocol to be used for the connection.[tcp/udp]
+  * \param[in] zmqType The type of the ZeroMQ connection.[PUSH/PUB]
   * \param[in] queueSize The number of NDArrays that the input queue for this plugin can hold when 
   *            NDPluginDriverBlockingCallbacks=0.  Larger queues can decrease the number of dropped arrays,
   *            at the expense of more NDArray buffers being allocated from the underlying driver's NDArrayPool.
