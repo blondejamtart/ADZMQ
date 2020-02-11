@@ -38,7 +38,10 @@ header_t = """{
     "type"  : "%s",
     "frame" : %d,
     "ndattr": {
-        "NumImages" : 1
+        "NumImages" : {
+            "value": 1,
+            "dataType": "uint32"
+         }
     }
 }"""
 
